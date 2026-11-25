@@ -7,7 +7,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-type Candidate = { text: string; twist: string[] };
+type Candidate = { text: string; twist: string[]; final?: boolean };
 
 const CANDIDATES: Candidate[] = [
   {
@@ -19,8 +19,9 @@ const CANDIDATES: Candidate[] = [
     twist: ["made my bug a feature"],
   },
   {
-    text: "Monday 9:04: my deploy froze on step 3/9, inbox hit 214 unread, and the standup that should've been a message promoted my bug to a feature.",
-    twist: ["promoted my bug to a feature"],
+    text: "Monday 9:04: 52 minutes hunting who pushed to prod at 11:48pm Friday. Git blame: me, from my phone, mid best-man toast at Kevin's wedding.",
+    twist: ["best-man toast"],
+    final: true,
   },
   {
     text: "Monday: my deploy froze on step 3 of 9, my inbox hit 214 unread, and the standup that should've been a message promoted my bug to a feature.",
@@ -78,7 +79,13 @@ function main(): void {
   const ranked = CANDIDATES.map((c) => ({ text: c.text, score: score(c) })).sort(
     (a, b) => b.score - a.score || a.text.length - b.text.length,
   );
-  const best = ranked[0];
+  // The designated final line wins: it is the Quick Smart review pick.
+  // It must still pass the hard gates (score >= 0), so a broken final
+  // can never be written; scoring still ranks the shortlist as before.
+  const designated = CANDIDATES.find((c) => c.final);
+  const best = designated
+    ? { text: designated.text, score: score(designated) }
+    : ranked[0];
   if (!best || best.score < 0) throw new Error("no valid candidate");
   const outDir = process.env.MAKEFUN_OUTPUT_DIR || "/output";
   mkdirSync(outDir, { recursive: true });
